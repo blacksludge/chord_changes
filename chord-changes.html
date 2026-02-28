@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fretboard — Guitar Chord Change Trainer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #181818;
+    --surface2: #222;
+    --accent: #c8a84b;
+    --accent2: #e85d2f;
+    --text: #f0ebe0;
+    --muted: #777;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  header {
+    padding: 1.5rem 2.5rem;
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: baseline;
+    gap: 1.2rem;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: calc(100vh - 65px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid #222;
+    padding: 1.4rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.3rem;
+    overflow-y: auto;
+  }
+
+  .section-label {
+    display: block;
+    font-size: 0.6rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.6rem;
+  }
+
+  .control-group { display: flex; flex-direction: column; gap: 0.4rem; }
+
+  .field-label { font-size: 0.67rem; color: var(--muted); }
+
+  select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid #2e2e2e;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 3px;
+    appearance: none;
+    cursor: pointer;
+  }
+  select:focus { outline: 1px solid var(--accent); }
+
+  input[type="range"] {
+    width: 100%;
+    height: 3px;
+    appearance: none;
+    background: #2e2e2e;
+    border-radius: 2px;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 13px; height: 13px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .range-row { display: flex; align-items: center; gap: 0.7rem; }
+  .range-val  { min-width: 3rem; text-align: right; font-size: 0.74rem; color: var(--accent); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .toggle-label { font-size: 0.72rem; color: var(--text); }
+
+  .toggle { position: relative; width: 42px; height: 22px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: #2e2e2e;
+    border-radius: 22px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 3px; top: 3px;
+    background: #555;
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(20px); background: #0d0d0d; }
+
+  .hint { font-size: 0.61rem; color: #4a4a4a; line-height: 1.5; margin-top: 0.3rem; }
+
+  hr.div { border: none; border-top: 1px solid #222; }
+
+  .btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.65rem 1rem;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: 0.14s;
+    width: 100%;
+  }
+  .btn-primary { background: var(--accent); color: #0d0d0d; font-weight: 700; }
+  .btn-primary:hover { background: #d4b05c; }
+  .btn-stop { background: transparent; color: var(--accent2); border: 1px solid #3a1a10; }
+  .btn-stop:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
+  /* ── MAIN ── */
+  .main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    gap: 1.6rem;
+  }
+
+  /* Idle */
+  .idle-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.9rem; text-align: center; }
+  .idle-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--muted); font-weight: 400; }
+  .idle-title em { color: var(--accent); font-style: normal; }
+  .idle-sub { font-size: 0.68rem; color: #3e3e3e; max-width: 380px; line-height: 1.75; }
+
+  /* Active */
+  .active-wrap { display: none; flex-direction: column; align-items: center; gap: 1.5rem; width: 100%; }
+
+  /* Complete */
+  .complete-wrap { display: none; flex-direction: column; align-items: center; gap: 1rem; text-align: center; }
+  .complete-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 900; color: var(--accent); }
+
+  /* Timers */
+  .timer-bar { display: flex; gap: 3rem; align-items: flex-end; }
+  .timer-block { text-align: center; }
+  .timer-label { font-size: 0.57rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+  .timer-num { font-family: 'Playfair Display', serif; font-size: 2.8rem; font-weight: 700; color: var(--accent); line-height: 1; }
+  .timer-num.urgent { color: var(--accent2); animation: flash 0.55s infinite alternate; }
+  @keyframes flash { from {opacity:1} to {opacity:0.35} }
+
+  .pair-prog { width: min(540px, 90%); height: 2px; background: #1e1e1e; border-radius: 2px; overflow: hidden; }
+  .pair-prog-fill { height: 100%; background: var(--accent); transition: width 0.85s linear; }
+
+  /* Progression context */
+  .prog-context { font-size: 0.68rem; color: #4a4a4a; letter-spacing: 0.05em; text-align: center; }
+  .prog-context strong { color: var(--accent); }
+
+  /* Beat dots */
+  .beat-row { display: flex; gap: 7px; align-items: center; height: 16px; }
+  .beat-dot { width: 8px; height: 8px; border-radius: 50%; background: #1e1e1e; transition: background 0.04s, box-shadow 0.04s; }
+  .beat-dot.down { width: 11px; height: 11px; }
+  .beat-dot.on { background: var(--accent2); box-shadow: 0 0 7px var(--accent2); }
+
+  /* Chord stage */
+  .chord-stage { display: flex; align-items: flex-start; gap: 2.5rem; }
+
+  .swap-arrow { font-size: 1.5rem; color: #2a2a2a; padding-top: 3.5rem; animation: sway 2.5s ease-in-out infinite; }
+  @keyframes sway { 0%,100% { transform:translateX(-4px); color:#242424 } 50% { transform:translateX(4px); color:#383838 } }
+
+  .chord-card { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; width: 162px; }
+  .chord-big-name { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; text-align: center; }
+  .chord-badge {
+    font-size: 0.58rem; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(200,168,75,0.08);
+    border: 1px solid rgba(200,168,75,0.22);
+    padding: 0.17rem 0.5rem;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .chord-fingering { font-size: 0.59rem; color: #4e4e4e; text-align: center; line-height: 1.55; max-width: 155px; }
+
+  @keyframes fadeUp { from {opacity:0;transform:translateY(10px)} to {opacity:1;transform:translateY(0)} }
+  .chord-stage.anim { animation: fadeUp 0.32s ease; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Fretboard</h1>
+  <span class="subtitle">Guitar Chord Change Trainer</span>
+</header>
+
+<div class="app">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar">
+
+    <div>
+      <span class="section-label">Key</span>
+      <div class="control-group">
+        <select id="keySelect">
+          <option value="0">C</option>
+          <option value="1">C# / D♭</option>
+          <option value="2">D</option>
+          <option value="3">D# / E♭</option>
+          <option value="4" selected>E</option>
+          <option value="5">F</option>
+          <option value="6">F# / G♭</option>
+          <option value="7">G</option>
+          <option value="8">G# / A♭</option>
+          <option value="9">A</option>
+          <option value="10">A# / B♭</option>
+          <option value="11">B</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div>
+      <span class="section-label">Timers</span>
+      <div class="control-group">
+        <span class="field-label">Time per chord pair</span>
+        <div class="range-row">
+          <input type="range" id="pairTime" min="10" max="120" value="60" step="5">
+          <span class="range-val" id="pairTimeVal">60s</span>
+        </div>
+      </div>
+      <div class="control-group" style="margin-top:0.65rem">
+        <span class="field-label">Session duration</span>
+        <div class="range-row">
+          <input type="range" id="sessionTime" min="1" max="30" value="5" step="1">
+          <span class="range-val" id="sessionTimeVal">5 min</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div>
+      <span class="section-label">Difficulty</span>
+      <div class="toggle-row">
+        <span class="toggle-label">Hard mode</span>
+        <label class="toggle">
+          <input type="checkbox" id="hardMode">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="hint">
+        <strong style="color:#555">Off</strong> — pairs stay within 2 frets (same position area).<br>
+        <strong style="color:#555">On</strong> — chords can land anywhere on the neck.
+      </p>
+    </div>
+
+    <hr class="div">
+
+    <div>
+      <span class="section-label">Rhythm</span>
+      <div class="control-group">
+        <span class="field-label">Tempo (BPM)</span>
+        <div class="range-row">
+          <input type="range" id="tempoRange" min="40" max="200" value="80" step="1">
+          <span class="range-val" id="tempoVal">80</span>
+        </div>
+      </div>
+      <div class="control-group" style="margin-top:0.65rem">
+        <span class="field-label">Time signature</span>
+        <select id="timeSig">
+          <option value="4">4 / 4</option>
+          <option value="3">3 / 4</option>
+          <option value="6">6 / 8</option>
+        </select>
+      </div>
+      <div class="toggle-row" style="margin-top:0.75rem">
+        <span class="toggle-label">MIDI backbeat</span>
+        <label class="toggle">
+          <input type="checkbox" id="midiToggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div style="display:flex;flex-direction:column;gap:0.45rem;margin-top:auto">
+      <button class="btn btn-primary" id="startBtn">Start Session</button>
+      <button class="btn btn-stop"    id="stopBtn" style="display:none">End Session</button>
+    </div>
+
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <main class="main">
+
+    <div class="idle-wrap" id="idleScreen">
+      <div class="idle-title">Pick a <em>key</em>, set your timers,<br>then start practicing.</div>
+      <p class="idle-sub">
+        Each session draws chord pairs from common progressions —
+        I–V–vi–IV, ii–V–I, and more — using CAGED barre forms
+        tuned to your key. The app cycles through pairs automatically
+        until time runs out.
+      </p>
+    </div>
+
+    <div class="active-wrap" id="activeScreen">
+      <div class="timer-bar">
+        <div class="timer-block">
+          <div class="timer-label">Session</div>
+          <div class="timer-num" id="sessionDisplay">05:00</div>
+        </div>
+        <div class="timer-block">
+          <div class="timer-label">This Pair</div>
+          <div class="timer-num" id="pairDisplay">01:00</div>
+        </div>
+      </div>
+
+      <div class="pair-prog"><div class="pair-prog-fill" id="progFill"></div></div>
+
+      <div class="prog-context" id="progContext"></div>
+
+      <div class="beat-row" id="beatRow"></div>
+
+      <div class="chord-stage" id="chordStage"></div>
+    </div>
+
+    <div class="complete-wrap" id="completeScreen">
+      <div class="complete-title">Session Complete</div>
+      <p style="color:var(--muted);font-size:0.77rem;margin-top:0.2rem">Good work. Keep those changes smooth.</p>
+      <button class="btn btn-primary" id="restartBtn" style="width:auto;padding:0.65rem 2rem;margin-top:1rem">
+        New Session
+      </button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+'use strict';
+
+// ──────────────────────────────────────────────────────────
+// DATA
+// ──────────────────────────────────────────────────────────
+
+const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11]; // semitones from root for each degree
+
+// CAGED form definitions
+// rel[0] = string 6 (low E, diagram left), rel[5] = string 1 (high e, diagram right)
+// rel value: semitones above barre fret for that finger. null = muted.
+// muted: string numbers (1=high e, 6=low E) that should show X
+const FORMS = {
+  E_major: {
+    form:'E', rootStr:6, openRootPitch:4,
+    rel:[0,2,2,1,0,0], muted:[],
+    desc:'Full 6-string barre. Ring, pinky, middle on A/D/G strings (+2,+2,+1).',
+  },
+  E_minor: {
+    form:'E', rootStr:6, openRootPitch:4,
+    rel:[0,2,2,0,0,0], muted:[],
+    desc:'Full 6-string barre. Ring & pinky on A & D strings (+2 each).',
+  },
+  E_7: {
+    form:'E', rootStr:6, openRootPitch:4,
+    rel:[0,2,0,1,0,0], muted:[],
+    desc:'Full barre. Middle on A (+2); index barre on G (+1). D open (barred).',
+  },
+  E_m7: {
+    form:'E', rootStr:6, openRootPitch:4,
+    rel:[0,2,0,0,0,0], muted:[],
+    desc:'Full barre. Middle on A string (+2 from barre). All else barred.',
+  },
+  E_maj7: {
+    form:'E', rootStr:6, openRootPitch:4,
+    rel:[0,2,1,1,0,0], muted:[],
+    desc:'Full barre. Pinky A (+2), middle D (+1), ring G (+1).',
+  },
+
+  A_major: {
+    form:'A', rootStr:5, openRootPitch:9,
+    rel:[null,0,2,2,2,0], muted:[1],
+    desc:'Mute low E. Barre A–e. Ring/pinky cluster on D, G, B (+2).',
+  },
+  A_minor: {
+    form:'A', rootStr:5, openRootPitch:9,
+    rel:[null,0,2,2,1,0], muted:[1],
+    desc:'Mute low E. Ring D (+2), pinky G (+2), middle B (+1).',
+  },
+  A_7: {
+    form:'A', rootStr:5, openRootPitch:9,
+    rel:[null,0,2,0,2,0], muted:[1],
+    desc:'Mute low E. Ring D (+2), pinky B (+2). G barred by index.',
+  },
+  A_m7: {
+    form:'A', rootStr:5, openRootPitch:9,
+    rel:[null,0,2,0,1,0], muted:[1],
+    desc:'Mute low E. Ring D (+2), middle B (+1). G barred by index.',
+  },
+  A_maj7: {
+    form:'A', rootStr:5, openRootPitch:9,
+    rel:[null,0,2,1,2,0], muted:[1],
+    desc:'Mute low E. Pinky D (+2), middle G (+1), ring B (+2).',
+  },
+
+  D_major: {
+    form:'D', rootStr:4, openRootPitch:2,
+    rel:[null,null,0,2,3,2], muted:[1,2],
+    desc:'Mute E & A. Barre D–e. Ring e (+3), middle/index on B & G (+2).',
+  },
+  D_minor: {
+    form:'D', rootStr:4, openRootPitch:2,
+    rel:[null,null,0,2,3,1], muted:[1,2],
+    desc:'Mute E & A. Ring e (+3), middle B (+2), pinky G (+2), index e (+1) — standard Dm barre.',
+  },
+  D_7: {
+    form:'D', rootStr:4, openRootPitch:2,
+    rel:[null,null,0,2,1,2], muted:[1,2],
+    desc:'Mute E & A. Ring e (+2), index B (+1), middle G (+2).',
+  },
+  D_m7: {
+    form:'D', rootStr:4, openRootPitch:2,
+    rel:[null,null,0,2,1,1], muted:[1,2],
+    desc:'Mute E & A. Ring G (+2), middle B (+1), index e (+1) barre.',
+  },
+  D_maj7: {
+    form:'D', rootStr:4, openRootPitch:2,
+    rel:[null,null,0,2,2,2], muted:[1,2],
+    desc:'Mute E & A. Full D-shape barre. Ring/pinky on G, B, e (+2).',
+  },
+
+  C_major: {
+    form:'C', rootStr:5, openRootPitch:9,
+    rel:[null,0,3,2,1,0], muted:[1],
+    desc:'Mute low E. Pinky D (+3), ring G (+2), middle B (+1). A & e barred.',
+  },
+  C_minor: {
+    form:'C', rootStr:5, openRootPitch:9,
+    rel:[null,0,3,2,0,0], muted:[1],
+    desc:'Mute low E. Pinky D (+3), ring G (+2). A, B, e barred.',
+  },
+  C_7: {
+    form:'C', rootStr:5, openRootPitch:9,
+    rel:[null,0,2,3,1,0], muted:[1],
+    desc:'Mute low E. Ring D (+2), pinky G (+3), middle B (+1).',
+  },
+  C_m7: {
+    form:'C', rootStr:5, openRootPitch:9,
+    rel:[null,0,3,1,0,0], muted:[1],
+    desc:'Mute low E. Pinky D (+3), middle G (+1). A, B, e barred.',
+  },
+  C_maj7: {
+    form:'C', rootStr:5, openRootPitch:9,
+    rel:[null,0,2,2,1,0], muted:[1],
+    desc:'Mute low E. Ring D (+2), pinky G (+2), middle B (+1).',
+  },
+};
+
+const FORM_NAMES = ['E','A','D','C'];
+const OPEN_PITCHES = { E:4, A:9, D:2, C:9 };
+
+// Common chord progressions used to drive pair selection.
+// Each entry: [scaleDegree (1-7), quality]
+// The app cycles through consecutive pairs within the progression.
+const PROGRESSIONS = [
+  { name:'I – V – vi – IV',        chords:[[1,'major'],[5,'major'],[6,'minor'],[4,'major']] },
+  { name:'I – IV – V',             chords:[[1,'major'],[4,'major'],[5,'major']] },
+  { name:'I – vi – IV – V',        chords:[[1,'major'],[6,'minor'],[4,'major'],[5,'major']] },
+  { name:'I – IV – vi – V',        chords:[[1,'major'],[4,'major'],[6,'minor'],[5,'major']] },
+  { name:'ii – V – I (jazz)',       chords:[[2,'m7'],[5,'7'],[1,'maj7']] },
+  { name:'IMaj7 – IVMaj7',         chords:[[1,'maj7'],[4,'maj7']] },
+  { name:'I – iii – IV – V',       chords:[[1,'major'],[3,'minor'],[4,'major'],[5,'major']] },
+  { name:'I – V – vi – iii – IV',  chords:[[1,'major'],[5,'major'],[6,'minor'],[3,'minor'],[4,'major']] },
+  { name:'i – VII – VI',           chords:[[1,'minor'],[7,'major'],[6,'major']] },
+  { name:'i – iv – VII – III',     chords:[[1,'minor'],[4,'minor'],[7,'major'],[3,'major']] },
+  { name:'i – VI – III – VII',     chords:[[1,'minor'],[6,'major'],[3,'major'],[7,'major']] },
+  { name:'i – iv – i – V7',        chords:[[1,'minor'],[4,'minor'],[1,'minor'],[5,'7']] },
+  { name:'I – IV – V7',            chords:[[1,'major'],[4,'major'],[5,'7']] },
+  { name:'vi – IV – I – V',        chords:[[6,'minor'],[4,'major'],[1,'major'],[5,'major']] },
+  { name:'ii7 – V7 – IMaj7',       chords:[[2,'m7'],[5,'7'],[1,'maj7']] },
+];
+
+// ── State ──
+let currentProg = null;
+let progPairIdx = 0;
+
+function pickProg() {
+  return PROGRESSIONS[Math.floor(Math.random() * PROGRESSIONS.length)];
+}
+
+function degreeToNote(keyRoot, degree) {
+  return (keyRoot + MAJOR_SCALE[degree - 1]) % 12;
+}
+
+function chordName(pitch, quality) {
+  const n = NOTES[pitch];
+  const sfx = { major:'', minor:'m', '7':'7', m7:'m7', maj7:'Maj7' }[quality] ?? '';
+  return n + sfx;
+}
+
+// Assign a CAGED form + fret for given pitch+quality.
+// wantNearFret: if set (same-position / easy mode), rank by closeness.
+// If null (hard mode), pick randomly.
+function assignForm(pitch, quality, wantNearFret) {
+  const candidates = [];
+  for (const f of FORM_NAMES) {
+    const key = `${f}_${quality}`;
+    if (!FORMS[key]) continue;
+    let fret = (pitch - OPEN_PITCHES[f] + 12) % 12;
+    if (fret === 0) fret = 12;
+    for (const fr of [fret, fret + 12]) {
+      if (fr < 1 || fr > 15) continue;
+      candidates.push({ f, fr });
+    }
+  }
+  if (!candidates.length) return null;
+
+  if (wantNearFret != null) {
+    candidates.sort((a,b) => Math.abs(a.fr - wantNearFret) - Math.abs(b.fr - wantNearFret) || Math.random()-0.5);
+  } else {
+    candidates.sort(() => Math.random() - 0.5);
+  }
+
+  const { f, fr } = candidates[0];
+  return { ...FORMS[`${f}_${quality}`], form: f, fret: fr, quality };
+}
+
+// Build the next pair from the current progression
+function nextPair() {
+  const keyRoot = parseInt(document.getElementById('keySelect').value);
+  const hard    = document.getElementById('hardMode').checked;
+
+  const chords = currentProg.chords;
+  const i = progPairIdx % chords.length;
+  const j = (i + 1) % chords.length;
+  progPairIdx = j; // advance for next call
+
+  const [d1, q1] = chords[i];
+  const [d2, q2] = chords[j];
+
+  const p1 = degreeToNote(keyRoot, d1);
+  const p2 = degreeToNote(keyRoot, d2);
+
+  const c1 = assignForm(p1, q1, null);
+  if (!c1) return null;
+
+  // easy mode: second chord must land within 2 frets of first
+  const c2 = assignForm(p2, q2, hard ? null : c1.fret);
+  if (!c2) return null;
+
+  c1.name = chordName(p1, q1);
+  c2.name = chordName(p2, q2);
+  return [c1, c2];
+}
+
+// ──────────────────────────────────────────────────────────
+// SVG CHORD DIAGRAM
+// ──────────────────────────────────────────────────────────
+
+function renderDiagram(chord) {
+  const { rel, muted, rootStr, fret } = chord;
+  const ML=24, MT=30, fretCount=5, strCount=6;
+  const W=118, H=148;
+  const strGap = (W - ML - 8) / (strCount - 1);
+  const fretGap = (H - MT - 16) / fretCount;
+  const p = [];
+
+  p.push(`<svg width="${W+8}" height="${H+8}" viewBox="0 0 ${W+8} ${H+8}" xmlns="http://www.w3.org/2000/svg">`);
+
+  // Fret label
+  p.push(`<text x="${ML}" y="16" font-size="10" fill="#c8a84b" font-family="Space Mono,monospace" text-anchor="middle">${fret}fr</text>`);
+
+  // Barre bar
+  p.push(`<rect x="${ML-8}" y="${MT-5}" width="${strGap*(strCount-1)+16}" height="7" rx="3.5" fill="#c8a84b" opacity="0.82"/>`);
+
+  // Fret lines
+  for (let f=0; f<=fretCount; f++) {
+    const y = MT + f*fretGap;
+    p.push(`<line x1="${ML}" y1="${y}" x2="${ML+strGap*(strCount-1)}" y2="${y}" stroke="#262616" stroke-width="1"/>`);
+  }
+
+  // String lines
+  for (let s=0; s<strCount; s++) {
+    const x = ML + s*strGap;
+    p.push(`<line x1="${x}" y1="${MT}" x2="${x}" y2="${MT+fretCount*fretGap}" stroke="#302818" stroke-width="1.5"/>`);
+  }
+
+  // Dots & mutes
+  for (let s=0; s<strCount; s++) {
+    const strNum = 6 - s; // str6=leftmost, str1=rightmost
+    const x = ML + s*strGap;
+    const isMuted = (muted||[]).includes(strNum) || rel[s] === null;
+    if (isMuted) {
+      p.push(`<text x="${x}" y="${MT-9}" font-size="11" fill="#5a1a0e" text-anchor="middle" font-family="sans-serif">✕</text>`);
+      continue;
+    }
+    const rf = rel[s];
+    if (rf === 0) {
+      // On barre
+      p.push(`<circle cx="${x}" cy="${MT}" r="4" fill="#c8a84b"/>`);
+    } else if (rf >= 1 && rf <= fretCount) {
+      const y = MT + (rf - 0.5)*fretGap;
+      const isRoot = strNum === rootStr;
+      p.push(`<circle cx="${x}" cy="${y}" r="5.5" fill="${isRoot ? '#c8a84b' : '#ddd5c0'}"/>`);
+    }
+  }
+
+  // String labels
+  const names = ['E','A','D','G','B','e'];
+  for (let s=0; s<strCount; s++) {
+    const x = ML + s*strGap;
+    p.push(`<text x="${x}" y="${MT+fretCount*fretGap+15}" font-size="8" fill="#383828" text-anchor="middle" font-family="Space Mono,monospace">${names[s]}</text>`);
+  }
+
+  p.push('</svg>');
+  return p.join('');
+}
+
+// ──────────────────────────────────────────────────────────
+// UI
+// ──────────────────────────────────────────────────────────
+
+const QUAL_LABEL = { major:'Major', minor:'Minor', '7':'Dom 7', m7:'Minor 7', maj7:'Major 7' };
+const ROOT_STR_LABEL = { 6:'Root: 6th str (low E)', 5:'Root: 5th str (A)', 4:'Root: 4th str (D)' };
+
+function buildCard(chord) {
+  return `
+    <div class="chord-card">
+      <div class="chord-big-name">${chord.name}</div>
+      <div class="chord-badge">${chord.form} Form · Fret ${chord.fret}</div>
+      ${renderDiagram(chord)}
+      <div class="chord-fingering">
+        ${ROOT_STR_LABEL[chord.rootStr] ?? ''}<br>
+        ${QUAL_LABEL[chord.quality] ?? chord.quality}<br>
+        <span style="color:#3a3a2e">${chord.desc}</span>
+      </div>
+    </div>`;
+}
+
+function displayPair(pair) {
+  const stage = document.getElementById('chordStage');
+  stage.innerHTML = buildCard(pair[0]) + `<div class="swap-arrow">⇄</div>` + buildCard(pair[1]);
+  stage.classList.remove('anim');
+  void stage.offsetWidth;
+  stage.classList.add('anim');
+}
+
+function showScreen(id) {
+  ['idleScreen','activeScreen','completeScreen'].forEach(s => {
+    const el = document.getElementById(s);
+    if (s === 'activeScreen') {
+      el.style.display = (s===id) ? 'flex' : 'none';
+    } else {
+      el.style.display = (s===id) ? '' : 'none';
+    }
+  });
+}
+
+// ──────────────────────────────────────────────────────────
+// AUDIO
+// ──────────────────────────────────────────────────────────
+
+let audioCtx=null, beatInterval=null, beatCount=0;
+
+function getCtx() {
+  if (!audioCtx || audioCtx.state==='closed') audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if (audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// ── Shared noise buffer (regenerated per hit for randomness) ──
+function mkNoise(ctx, dur) {
+  const n = ctx.sampleRate * dur;
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+// ── Rock kick: deep sine punch with click transient ──
+function kick(t) {
+  const ctx = getCtx();
+
+  // Low sine body
+  const body = ctx.createOscillator();
+  const bodyGain = ctx.createGain();
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -6; comp.ratio.value = 4;
+  body.connect(bodyGain); bodyGain.connect(comp); comp.connect(ctx.destination);
+  body.frequency.setValueAtTime(160, t);
+  body.frequency.exponentialRampToValueAtTime(42, t + 0.08);
+  bodyGain.gain.setValueAtTime(2.2, t);
+  bodyGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+  body.start(t); body.stop(t + 0.3);
+
+  // Click transient (very short noise burst)
+  const click = ctx.createBufferSource();
+  const clickHP = ctx.createBiquadFilter();
+  const clickGain = ctx.createGain();
+  clickHP.type = 'bandpass'; clickHP.frequency.value = 3200; clickHP.Q.value = 0.8;
+  click.buffer = mkNoise(ctx, 0.012);
+  click.connect(clickHP); clickHP.connect(clickGain); clickGain.connect(ctx.destination);
+  clickGain.gain.setValueAtTime(0.9, t);
+  clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.012);
+  click.start(t); click.stop(t + 0.015);
+}
+
+// ── Rock snare: tonal thud + full-bandwidth crack ──
+function snare(t) {
+  const ctx = getCtx();
+
+  // Tonal body (tuned sine like a real snare shell)
+  const tone = ctx.createOscillator();
+  const toneGain = ctx.createGain();
+  tone.type = 'triangle';
+  tone.frequency.setValueAtTime(200, t);
+  tone.frequency.exponentialRampToValueAtTime(140, t + 0.06);
+  tone.connect(toneGain); toneGain.connect(ctx.destination);
+  toneGain.gain.setValueAtTime(0.7, t);
+  toneGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  tone.start(t); tone.stop(t + 0.12);
+
+  // Noise crack — wide bandwidth, sharp decay
+  const crack = ctx.createBufferSource();
+  const crackHP = ctx.createBiquadFilter();
+  const crackGain = ctx.createGain();
+  crackHP.type = 'highpass'; crackHP.frequency.value = 1800;
+  crack.buffer = mkNoise(ctx, 0.18);
+  crack.connect(crackHP); crackHP.connect(crackGain); crackGain.connect(ctx.destination);
+  crackGain.gain.setValueAtTime(1.1, t);
+  crackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+  crack.start(t); crack.stop(t + 0.2);
+
+  // Snare rattle (mid-band noise tail)
+  const rattle = ctx.createBufferSource();
+  const rattleBP = ctx.createBiquadFilter();
+  const rattleGain = ctx.createGain();
+  rattleBP.type = 'bandpass'; rattleBP.frequency.value = 5500; rattleBP.Q.value = 0.5;
+  rattle.buffer = mkNoise(ctx, 0.22);
+  rattle.connect(rattleBP); rattleBP.connect(rattleGain); rattleGain.connect(ctx.destination);
+  rattleGain.gain.setValueAtTime(0.45, t);
+  rattleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+  rattle.start(t); rattle.stop(t + 0.25);
+}
+
+// ── Hi-hat: closed or open ──
+function hihat(t, open) {
+  const ctx = getCtx();
+  const dur = open ? 0.28 : 0.042;
+
+  // Metal fundamental frequencies (simulate cymbal overtone series)
+  const freqs = [3520, 4760, 6400, 8400, 11200];
+  freqs.forEach(f => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = f;
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.04, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.start(t); o.stop(t + dur + 0.01);
+  });
+
+  // Noise layer
+  const src = ctx.createBufferSource();
+  const hp  = ctx.createBiquadFilter();
+  const g   = ctx.createGain();
+  hp.type = 'highpass'; hp.frequency.value = 9000;
+  src.buffer = mkNoise(ctx, dur + 0.02);
+  src.connect(hp); hp.connect(g); g.connect(ctx.destination);
+  g.gain.setValueAtTime(open ? 0.35 : 0.18, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  src.start(t); src.stop(t + dur + 0.02);
+}
+
+// ── Rock beat sequencer ──
+// Explicit 8-step (8th-note) patterns. Crystal clear: 1 and 2 and 3 and 4 and.
+// step:         0    1    2    3    4    5    6    7
+//               1   1&    2   2&    3   3&    4   4&
+
+const PAT4 = [
+  {k:1,s:0,h:1,o:0}, // 1   — kick + hat
+  {k:0,s:0,h:1,o:0}, // 1&  — hat
+  {k:0,s:1,h:1,o:0}, // 2   — snare + hat
+  {k:0,s:0,h:1,o:0}, // 2&  — hat
+  {k:1,s:0,h:1,o:0}, // 3   — kick + hat
+  {k:0,s:0,h:1,o:0}, // 3&  — hat
+  {k:0,s:1,h:1,o:0}, // 4   — snare + hat
+  {k:0,s:0,h:1,o:1}, // 4&  — open hat
+];
+
+const PAT3 = [
+  {k:1,s:0,h:1,o:0}, // 1
+  {k:0,s:0,h:1,o:0}, // 1&
+  {k:0,s:1,h:1,o:0}, // 2
+  {k:0,s:0,h:1,o:0}, // 2&
+  {k:0,s:0,h:1,o:0}, // 3
+  {k:0,s:0,h:1,o:0}, // 3&
+];
+
+const PAT6 = [
+  {k:1,s:0,h:1,o:0}, // 1
+  {k:0,s:0,h:1,o:0}, // 2
+  {k:0,s:1,h:1,o:0}, // 3
+  {k:1,s:0,h:1,o:0}, // 4
+  {k:0,s:0,h:1,o:0}, // 5
+  {k:0,s:1,h:1,o:0}, // 6
+];
+
+function startBeat(bpm, beats, onBeat) {
+  stopBeat();
+  beatCount = 0;
+
+  const pattern = beats === 3 ? PAT3 : beats === 6 ? PAT6 : PAT4;
+  const ms = (60000 / bpm) / 2; // 8th-note interval
+
+  function tick() {
+    const t = getCtx().currentTime + 0.015;
+    const step = beatCount % pattern.length;
+    const p = pattern[step];
+
+    if (p.k) kick(t);
+    if (p.s) snare(t);
+    if (p.h) hihat(t, !!p.o);
+
+    // Advance quarter-beat dot on every downbeat (even steps)
+    if (step % 2 === 0) onBeat(step / 2, beats);
+
+    beatCount = (beatCount + 1) % pattern.length;
+  }
+
+  tick();
+  beatInterval = setInterval(tick, ms);
+}
+
+function stopBeat() {
+  if (beatInterval) { clearInterval(beatInterval); beatInterval=null; }
+  beatCount=0;
+}
+
+function buildBeatUI(beats) {
+  const row=document.getElementById('beatRow');
+  row.innerHTML='';
+  for (let i=0;i<beats;i++) {
+    const d=document.createElement('div');
+    d.className='beat-dot'+(i===0?' down':'');
+    d.id=`bd_${i}`;
+    row.appendChild(d);
+  }
+}
+
+function lightBeat(b, beats) {
+  for (let i=0;i<beats;i++) {
+    const el=document.getElementById(`bd_${i}`);
+    if (el) el.classList.toggle('on', i===b);
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// SESSION
+// ──────────────────────────────────────────────────────────
+
+let sessionTimer=null, pairTimer=null;
+let sessionRem=0, pairRem=0, pairDur=60;
+
+function fmt(s) {
+  return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+
+function loadNextPair() {
+  // If we've wrapped through the full progression, optionally pick a new one
+  if (progPairIdx === 0 && currentProg) {
+    // 50% chance to switch progression for variety
+    if (Math.random() < 0.5) currentProg = pickProg();
+  }
+  const pair = nextPair();
+  if (pair) {
+    displayPair(pair);
+    document.getElementById('progContext').innerHTML =
+      `Progression: <strong>${currentProg.name}</strong>`;
+  }
+}
+
+function startSession() {
+  currentProg = pickProg();
+  progPairIdx = 0;
+
+  pairDur = parseInt(document.getElementById('pairTime').value);
+  sessionRem = parseInt(document.getElementById('sessionTime').value) * 60;
+  pairRem = pairDur;
+
+  document.getElementById('sessionDisplay').textContent = fmt(sessionRem);
+  document.getElementById('pairDisplay').textContent    = fmt(pairRem);
+  document.getElementById('progFill').style.width       = '100%';
+
+  const beats = parseInt(document.getElementById('timeSig').value);
+  buildBeatUI(beats);
+
+  showScreen('activeScreen');
+  document.getElementById('startBtn').style.display = 'none';
+  document.getElementById('stopBtn').style.display  = 'block';
+
+  loadNextPair();
+
+  sessionTimer = setInterval(() => {
+    sessionRem--;
+    document.getElementById('sessionDisplay').textContent = fmt(sessionRem);
+    if (sessionRem <= 0) endSession();
+  }, 1000);
+
+  pairTimer = setInterval(() => {
+    pairRem--;
+    document.getElementById('pairDisplay').textContent = fmt(pairRem);
+    document.getElementById('pairDisplay').classList.toggle('urgent', pairRem<=5 && pairRem>0);
+    document.getElementById('progFill').style.width = `${(pairRem/pairDur)*100}%`;
+    if (pairRem <= 0) {
+      document.getElementById('pairDisplay').classList.remove('urgent');
+      pairRem = pairDur;
+      loadNextPair();
+    }
+  }, 1000);
+
+  if (document.getElementById('midiToggle').checked) {
+    startBeat(parseInt(document.getElementById('tempoRange').value), beats, lightBeat);
+  }
+}
+
+function stopSession() {
+  clearInterval(sessionTimer); clearInterval(pairTimer);
+  stopBeat();
+  sessionTimer=pairTimer=null;
+  document.getElementById('startBtn').style.display='block';
+  document.getElementById('stopBtn').style.display='none';
+  showScreen('idleScreen');
+}
+
+function endSession() {
+  clearInterval(sessionTimer); clearInterval(pairTimer);
+  stopBeat();
+  sessionTimer=pairTimer=null;
+  document.getElementById('startBtn').style.display='block';
+  document.getElementById('stopBtn').style.display='none';
+  showScreen('completeScreen');
+}
+
+// ──────────────────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  const bind = (id, valId, suffix) => {
+    const el=document.getElementById(id);
+    el.addEventListener('input',()=>{ document.getElementById(valId).textContent=el.value+suffix; });
+  };
+  bind('pairTime',    'pairTimeVal',    's');
+  bind('sessionTime', 'sessionTimeVal', ' min');
+  bind('tempoRange',  'tempoVal',       '');
+
+  // Live tempo update if beat is running
+  document.getElementById('tempoRange').addEventListener('input', () => {
+    if (beatInterval && document.getElementById('midiToggle').checked) {
+      const beats = parseInt(document.getElementById('timeSig').value);
+      startBeat(parseInt(document.getElementById('tempoRange').value), beats, lightBeat);
+    }
+  });
+
+  document.getElementById('startBtn').addEventListener('click', startSession);
+  document.getElementById('stopBtn').addEventListener('click', stopSession);
+  document.getElementById('restartBtn').addEventListener('click', () => showScreen('idleScreen'));
+
+  showScreen('idleScreen');
+});
+</script>
+</body>
+</html>
