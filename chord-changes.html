@@ -221,7 +221,7 @@
   .swap-arrow { font-size: 1.5rem; color: #2a2a2a; padding-top: 3.5rem; animation: sway 2.5s ease-in-out infinite; }
   @keyframes sway { 0%,100% { transform:translateX(-4px); color:#242424 } 50% { transform:translateX(4px); color:#383838 } }
 
-  .chord-card { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; width: 162px; }
+  .chord-card { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; width: 190px; }
   .chord-big-name { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; text-align: center; }
   .chord-badge {
     font-size: 0.58rem; letter-spacing: 0.13em; text-transform: uppercase;
@@ -232,7 +232,7 @@
     border-radius: 2px;
     white-space: nowrap;
   }
-  .chord-fingering { font-size: 0.59rem; color: #4e4e4e; text-align: center; line-height: 1.55; max-width: 155px; }
+  .chord-fingering { font-size: 0.59rem; color: #4e4e4e; text-align: center; line-height: 1.55; max-width: 180px; }
 
   @keyframes fadeUp { from {opacity:0;transform:translateY(10px)} to {opacity:1;transform:translateY(0)} }
   .chord-stage.anim { animation: fadeUp 0.32s ease; }
@@ -399,138 +399,244 @@
 const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11]; // semitones from root for each degree
 
-// CAGED form definitions
-// rel[0] = string 6 (low E, diagram left), rel[5] = string 1 (high e, diagram right)
-// rel value: semitones above barre fret for that finger. null = muted.
-// muted: string numbers (1=high e, 6=low E) that should show X
+// ── CAGED form definitions ──────────────────────────────────────────
+// Read cell-by-cell from PDF page 27.
+// rel[0..5] = strings 6→1 (low E to high e).
+// rel value = frets above the barre. 0 = on the barre. null = muted.
+// muted = string numbers showing X above diagram.
+// barreStrings = strings the index-finger barre physically covers.
+//
+// Open-chord cross-check:
+//   E: E=022100  Em=022000  E7=020100  Em7=022030  EMaj7=0x2100
+//   A: A=x02220  Am=x02210  A7=x02020  Am7=x02010  AMaj7=x02120
+//   D: D=xx0232  Dm=xx0231  D7=xx0212  Dm7=xx0211  DMaj7=xx0222
+//   C: C=x32010  Cm=x3(barre)  C7=x32310  Cm7=x3(barre)  CMaj7=x32000
+
 const FORMS = {
-  E_major: {
+
+  // ── E FORM: root on str 6 (low E), full 6-string barre ──────────
+
+  E_major: {                         // open E = 022100
     form:'E', rootStr:6, openRootPitch:4,
-    rel:[0,2,2,1,0,0], muted:[],
-    desc:'Full 6-string barre. Ring, pinky, middle on A/D/G strings (+2,+2,+1).',
+    rel:    [0,  2,  2,  1,  0,  0],
+    muted:[], barreStrings:[1,2,3,4,5,6],
+    desc:'Full barre. Middle A(+2), ring D(+2), index G(+1).',
   },
-  E_minor: {
+  E_minor: {                         // open Em = 022000
     form:'E', rootStr:6, openRootPitch:4,
-    rel:[0,2,2,0,0,0], muted:[],
-    desc:'Full 6-string barre. Ring & pinky on A & D strings (+2 each).',
+    rel:    [0,  2,  2,  0,  0,  0],
+    muted:[], barreStrings:[1,2,3,4,5,6],
+    desc:'Full barre. Middle A(+2), ring D(+2).',
   },
-  E_7: {
+  E_7: {                             // open E7 = 020100
     form:'E', rootStr:6, openRootPitch:4,
-    rel:[0,2,0,1,0,0], muted:[],
-    desc:'Full barre. Middle on A (+2); index barre on G (+1). D open (barred).',
+    rel:    [0,  2,  0,  1,  0,  0],
+    muted:[], barreStrings:[1,2,3,4,5,6],
+    desc:'Full barre. Middle A(+2), index G(+1). D sits on barre.',
   },
-  E_m7: {
+  E_m7: {                            // open Em7 = 022030
     form:'E', rootStr:6, openRootPitch:4,
-    rel:[0,2,0,0,0,0], muted:[],
-    desc:'Full barre. Middle on A string (+2 from barre). All else barred.',
+    rel:    [0,  2,  2,  0,  3,  3],
+    muted:[], barreStrings:[1,2,3,4,5,6],
+    desc:'Full barre. Middle A(+2), ring D(+2). Pinky B(+3), ring e(+3).',
   },
-  E_maj7: {
+  E_maj7: {                          // open EMaj7 = 0x2100 (A muted)
     form:'E', rootStr:6, openRootPitch:4,
-    rel:[0,2,1,1,0,0], muted:[],
-    desc:'Full barre. Pinky A (+2), middle D (+1), ring G (+1).',
+    rel:    [0, null, 2,  1,  0,  0],
+    muted:[5], barreStrings:[1,2,3,4,6],
+    desc:'Mute A string. Ring D(+2), middle G(+1). B and e on barre.',
   },
 
-  A_major: {
+  // ── A FORM: root on str 5 (A), str 6 muted ──────────────────────
+
+  A_major: {                         // open A = x02220
     form:'A', rootStr:5, openRootPitch:9,
-    rel:[null,0,2,2,2,0], muted:[1],
-    desc:'Mute low E. Barre A–e. Ring/pinky cluster on D, G, B (+2).',
+    rel:    [null, 0,  2,  2,  2,  0],
+    muted:[6], barreStrings:[1,2,3,4,5],
+    desc:'Mute low E. Ring/middle/index: D, G, B all +2.',
   },
-  A_minor: {
+  A_minor: {                         // open Am = x02210
     form:'A', rootStr:5, openRootPitch:9,
-    rel:[null,0,2,2,1,0], muted:[1],
-    desc:'Mute low E. Ring D (+2), pinky G (+2), middle B (+1).',
+    rel:    [null, 0,  2,  2,  1,  0],
+    muted:[6], barreStrings:[1,2,3,4,5],
+    desc:'Mute low E. Ring D(+2), middle G(+2), index B(+1).',
   },
-  A_7: {
+  A_7: {                             // open A7 = x02020
     form:'A', rootStr:5, openRootPitch:9,
-    rel:[null,0,2,0,2,0], muted:[1],
-    desc:'Mute low E. Ring D (+2), pinky B (+2). G barred by index.',
+    rel:    [null, 0,  2,  0,  2,  0],
+    muted:[6], barreStrings:[1,2,3,4,5],
+    desc:'Mute low E. Middle D(+2), ring B(+2). G and e on barre.',
   },
-  A_m7: {
+  A_m7: {                            // open Am7 = x02010
     form:'A', rootStr:5, openRootPitch:9,
-    rel:[null,0,2,0,1,0], muted:[1],
-    desc:'Mute low E. Ring D (+2), middle B (+1). G barred by index.',
+    rel:    [null, 0,  2,  0,  1,  0],
+    muted:[6], barreStrings:[1,2,3,4,5],
+    desc:'Mute low E. Middle D(+2), index B(+1). G and e on barre.',
   },
-  A_maj7: {
+  A_maj7: {                          // open AMaj7 = x02120
     form:'A', rootStr:5, openRootPitch:9,
-    rel:[null,0,2,1,2,0], muted:[1],
-    desc:'Mute low E. Pinky D (+2), middle G (+1), ring B (+2).',
+    rel:    [null, 0,  2,  1,  2,  0],
+    muted:[6], barreStrings:[1,2,3,4,5],
+    desc:'Mute low E. Ring D(+2), index G(+1), middle B(+2).',
   },
 
-  D_major: {
+  // ── D FORM: root on str 4 (D), str 5 & 6 muted ──────────────────
+
+  D_major: {                         // open D = xx0232
     form:'D', rootStr:4, openRootPitch:2,
-    rel:[null,null,0,2,3,2], muted:[1,2],
-    desc:'Mute E & A. Barre D–e. Ring e (+3), middle/index on B & G (+2).',
+    rel:    [null, null, 0,  2,  3,  2],
+    muted:[5,6], barreStrings:[1,2,3,4],
+    desc:'Mute low E & A. Index G(+2), ring B(+3), middle e(+2).',
   },
-  D_minor: {
+  D_minor: {                         // open Dm = xx0231
     form:'D', rootStr:4, openRootPitch:2,
-    rel:[null,null,0,2,3,1], muted:[1,2],
-    desc:'Mute E & A. Ring e (+3), middle B (+2), pinky G (+2), index e (+1) — standard Dm barre.',
+    rel:    [null, null, 0,  2,  3,  1],
+    muted:[5,6], barreStrings:[1,2,3,4],
+    desc:'Mute low E & A. Ring G(+2), pinky B(+3), index e(+1).',
   },
-  D_7: {
+  D_7: {                             // open D7 = xx0212
     form:'D', rootStr:4, openRootPitch:2,
-    rel:[null,null,0,2,1,2], muted:[1,2],
-    desc:'Mute E & A. Ring e (+2), index B (+1), middle G (+2).',
+    rel:    [null, null, 0,  2,  1,  2],
+    muted:[5,6], barreStrings:[1,2,3,4],
+    desc:'Mute low E & A. Ring G(+2), index B(+1), middle e(+2).',
   },
-  D_m7: {
+  D_m7: {                            // open Dm7 = xx0211
     form:'D', rootStr:4, openRootPitch:2,
-    rel:[null,null,0,2,1,1], muted:[1,2],
-    desc:'Mute E & A. Ring G (+2), middle B (+1), index e (+1) barre.',
+    rel:    [null, null, 0,  2,  1,  1],
+    muted:[5,6], barreStrings:[1,2,3,4],
+    desc:'Mute low E & A. Ring G(+2), index mini-barre B & e(+1).',
   },
-  D_maj7: {
+  D_maj7: {                          // open DMaj7 = xx0222
     form:'D', rootStr:4, openRootPitch:2,
-    rel:[null,null,0,2,2,2], muted:[1,2],
-    desc:'Mute E & A. Full D-shape barre. Ring/pinky on G, B, e (+2).',
+    rel:    [null, null, 0,  2,  2,  2],
+    muted:[5,6], barreStrings:[1,2,3,4],
+    desc:'Mute low E & A. Ring/index mini-barre G, B, e all (+2).',
   },
+
+  // ── C FORM: root on str 5 (A), str 6 muted ──────────────────────
+  //
+  // HOW C FORM WORKS (example: G major in C form)
+  //   - Barre (index finger) at fret 7 on ALL strings it covers
+  //   - Root (G) on str5 (A string) at fret 10 — 3 frets ABOVE the barre
+  //   - Open C shape notes relative to the barre fret:
+  //       str6 (low E): muted / X
+  //       str5 (A):     +3 frets = ROOT  ← middle finger (or ring)
+  //       str4 (D):     +2 frets         ← index or ring finger
+  //       str3 (G):      0 = on barre    ← open in open-C, barred here
+  //       str2 (B):     +1 fret          ← index finger (partial barre)
+  //       str1 (e):      0 = on barre    ← open in open-C, barred here
+  //
+  // `fret` stored on the chord = ROOT fret (what's displayed in the badge).
+  // `barreOffset` = how many frets below the root the barre sits (always 3 for C form).
+  // assignForm() computes: barre_fret = root_fret - barreOffset
+  // renderDiagram() draws the grid starting at barre_fret; root dot appears at row 3.
+  //
+  // openRootPitch for fret calculation: A string open = A = 9.
+  // But the root is 3 frets above the barre. So when we compute:
+  //   barre_fret = (pitch - openRootPitch + 12) % 12  → gives fret of A=0 note on A string
+  //   root_fret  = barre_fret + 3
+  // We store openRootPitch = (9 - 3 + 12) % 12 = 6  so the formula directly gives root_fret.
+  // Actually cleaner: keep openRootPitch = 9 (true open-A pitch) and handle offset in assignForm.
 
   C_major: {
-    form:'C', rootStr:5, openRootPitch:9,
-    rel:[null,0,3,2,1,0], muted:[1],
-    desc:'Mute low E. Pinky D (+3), ring G (+2), middle B (+1). A & e barred.',
+    // Open C = x32010: A(fret3)=root, D(fret2), G(open), B(fret1), e(open)
+    // Relative to BARRE (3 below root): str5=+3(root), str4=+2, str3=0, str2=+1, str1=0
+    form:'C', rootStr:5, openRootPitch:9, barreOffset:3,
+    rel:    [null, 3,  2,  0,  1,  0],
+    muted:[6], barreStrings:[1,2,3,5],
+    desc:'Root A str (+3 above barre). Ring D(+2), G on barre, index B(+1), e on barre.',
   },
   C_minor: {
-    form:'C', rootStr:5, openRootPitch:9,
-    rel:[null,0,3,2,0,0], muted:[1],
-    desc:'Mute low E. Pinky D (+3), ring G (+2). A, B, e barred.',
+    // Open Cm shape: A(fret3)=root, D(fret1), G(open), B(fret1 barre?), e(open)
+    // Practical C minor barre: str5=+3(root), str4=+1, str3=0, str2=+1, str1=0
+    // (collapse D to +1 to form the minor — G still open/barred, B barred)
+    // From PDF: ①① B&e at +1 (top of diagram = 1 above barre), ④ D at row lower
+    // PDF C minor diagram → D(+3 from barre? or +1?)
+    // User example anchor: root=+3. D in open Cm at fret1 = barre+(-2)? Impossible.
+    // Re-reading PDF for C minor: the barre goes across ALL strings at barre fret,
+    // root note (str5) is reached with ring finger 3 frets above barre.
+    // Remaining fingers add: str4(D) at barre+3 (pinky), str3(G) at barre+0, str2(B) barre+1, str1(e) barre+0
+    // Open Cm: x31013 → str5=root(3), str4=1, str3=0(open), str2=1, str1=0(open)
+    // So: str5=+3, str4=+1, str3=0, str2=+1, str1=0 — same as major but D at +1 not +2
+    form:'C', rootStr:5, openRootPitch:9, barreOffset:3,
+    rel:    [null, 3,  1,  0,  1,  0],
+    muted:[6], barreStrings:[1,2,3,5],
+    desc:'Root A str (+3 above barre). Index D(+1), G on barre, index B(+1), e on barre.',
   },
   C_7: {
-    form:'C', rootStr:5, openRootPitch:9,
-    rel:[null,0,2,3,1,0], muted:[1],
-    desc:'Mute low E. Ring D (+2), pinky G (+3), middle B (+1).',
+    // Open C7 = x32310: A(3)=root, D(2), G(3), B(1), e(0)
+    // G at fret3 = same fret as root on A string. Relative to barre:
+    // str5=+3(root), str4=+2, str3=+3, str2=+1, str1=0
+    form:'C', rootStr:5, openRootPitch:9, barreOffset:3,
+    rel:    [null, 3,  2,  3,  1,  0],
+    muted:[6], barreStrings:[1,2,5],
+    desc:'Root A str (+3). Ring D(+2), pinky G(+3), index B(+1), e on barre.',
   },
   C_m7: {
-    form:'C', rootStr:5, openRootPitch:9,
-    rel:[null,0,3,1,0,0], muted:[1],
-    desc:'Mute low E. Pinky D (+3), middle G (+1). A, B, e barred.',
+    // Cm7: str5=+3(root), str4=+1, str3=+3, str2=+1, str1=0
+    // (G at +3 adds the b7; D at +1 for minor)
+    form:'C', rootStr:5, openRootPitch:9, barreOffset:3,
+    rel:    [null, 3,  1,  3,  1,  0],
+    muted:[6], barreStrings:[1,2,5],
+    desc:'Root A str (+3). Index D(+1), pinky G(+3), index B(+1), e on barre.',
   },
   C_maj7: {
-    form:'C', rootStr:5, openRootPitch:9,
-    rel:[null,0,2,2,1,0], muted:[1],
-    desc:'Mute low E. Ring D (+2), pinky G (+2), middle B (+1).',
+    // Open CMaj7 = x32000: A(3)=root, D(2), G(0), B(0), e(0)
+    // str5=+3(root), str4=+2, str3=0, str2=0, str1=0
+    form:'C', rootStr:5, openRootPitch:9, barreOffset:3,
+    rel:    [null, 3,  2,  0,  0,  0],
+    muted:[6], barreStrings:[1,2,3,5],
+    desc:'Root A str (+3). Ring D(+2), G/B/e all on barre.',
   },
 };
 
 const FORM_NAMES = ['E','A','D','C'];
 const OPEN_PITCHES = { E:4, A:9, D:2, C:9 };
 
-// Common chord progressions used to drive pair selection.
-// Each entry: [scaleDegree (1-7), quality]
-// The app cycles through consecutive pairs within the progression.
+// ── Chord progressions ────────────────────────────────────────────────
+// All diatonic to the chosen major key.
+// Diatonic triads:  I  ii  iii  IV  V   vi  vii
+//                   maj min min  maj maj min  dim
+// Diatonic 7ths:    IMaj7  iim7  iiim7  IVMaj7  V7  vim7  viim7b5
+// We use 'dim7' label for vii — it will map to a D_minor / E_minor shape as fallback.
+// chordName() sfx table must include all qualities used here.
+
 const PROGRESSIONS = [
-  { name:'I – V – vi – IV',        chords:[[1,'major'],[5,'major'],[6,'minor'],[4,'major']] },
-  { name:'I – IV – V',             chords:[[1,'major'],[4,'major'],[5,'major']] },
-  { name:'I – vi – IV – V',        chords:[[1,'major'],[6,'minor'],[4,'major'],[5,'major']] },
-  { name:'I – IV – vi – V',        chords:[[1,'major'],[4,'major'],[6,'minor'],[5,'major']] },
-  { name:'ii – V – I (jazz)',       chords:[[2,'m7'],[5,'7'],[1,'maj7']] },
-  { name:'IMaj7 – IVMaj7',         chords:[[1,'maj7'],[4,'maj7']] },
-  { name:'I – iii – IV – V',       chords:[[1,'major'],[3,'minor'],[4,'major'],[5,'major']] },
-  { name:'I – V – vi – iii – IV',  chords:[[1,'major'],[5,'major'],[6,'minor'],[3,'minor'],[4,'major']] },
-  { name:'i – VII – VI',           chords:[[1,'minor'],[7,'major'],[6,'major']] },
-  { name:'i – iv – VII – III',     chords:[[1,'minor'],[4,'minor'],[7,'major'],[3,'major']] },
-  { name:'i – VI – III – VII',     chords:[[1,'minor'],[6,'major'],[3,'major'],[7,'major']] },
-  { name:'i – iv – i – V7',        chords:[[1,'minor'],[4,'minor'],[1,'minor'],[5,'7']] },
-  { name:'I – IV – V7',            chords:[[1,'major'],[4,'major'],[5,'7']] },
-  { name:'vi – IV – I – V',        chords:[[6,'minor'],[4,'major'],[1,'major'],[5,'major']] },
-  { name:'ii7 – V7 – IMaj7',       chords:[[2,'m7'],[5,'7'],[1,'maj7']] },
+  // Every progression has exactly one 7th chord.
+
+  // ── Triads + one 7th ──
+  { name:'I – V7 – vi – IV',
+    chords:[[1,'major'],[5,'7'],[6,'minor'],[4,'major']] },
+  { name:'I – IV – V7',
+    chords:[[1,'major'],[4,'major'],[5,'7']] },
+  { name:'I – vi – IV – V7',
+    chords:[[1,'major'],[6,'minor'],[4,'major'],[5,'7']] },
+  { name:'I – iii – IV – V7',
+    chords:[[1,'major'],[3,'minor'],[4,'major'],[5,'7']] },
+  { name:'I – ii – IV – V7',
+    chords:[[1,'major'],[2,'minor'],[4,'major'],[5,'7']] },
+  { name:'vi – IV – I – V7',
+    chords:[[6,'minor'],[4,'major'],[1,'major'],[5,'7']] },
+  { name:'I – V7 – vi – iii – IV',
+    chords:[[1,'major'],[5,'7'],[6,'minor'],[3,'minor'],[4,'major']] },
+  { name:'I – IMaj7 – IV – V',
+    chords:[[1,'major'],[1,'maj7'],[4,'major'],[5,'major']] },
+
+  // ── One 7th among mostly triads/maj/min ──
+  { name:'IMaj7 – IV – V – vi',
+    chords:[[1,'maj7'],[4,'major'],[5,'major'],[6,'minor']] },
+  { name:'I – IV – iim7 – V',
+    chords:[[1,'major'],[4,'major'],[2,'m7'],[5,'major']] },
+  { name:'I – iii – vim7 – IV',
+    chords:[[1,'major'],[3,'minor'],[6,'m7'],[4,'major']] },
+  { name:'iim7 – V – I – IV',
+    chords:[[2,'m7'],[5,'major'],[1,'major'],[4,'major']] },
+  { name:'I – V – IVMaj7 – I',
+    chords:[[1,'major'],[5,'major'],[4,'maj7'],[1,'major']] },
+  { name:'vi – IV – IMaj7 – V',
+    chords:[[6,'minor'],[4,'major'],[1,'maj7'],[5,'major']] },
+  { name:'I – iii – IV – vim7',
+    chords:[[1,'major'],[3,'minor'],[4,'major'],[6,'m7']] },
 ];
 
 // ── State ──
@@ -552,30 +658,43 @@ function chordName(pitch, quality) {
 }
 
 // Assign a CAGED form + fret for given pitch+quality.
-// wantNearFret: if set (same-position / easy mode), rank by closeness.
-// If null (hard mode), pick randomly.
+// wantNearFret: target fret for proximity (easy mode). null = random (hard mode).
+// MAX_FRET: the ROOT fret never goes above this.
+const MAX_FRET = 12;
+
 function assignForm(pitch, quality, wantNearFret) {
   const candidates = [];
   for (const f of FORM_NAMES) {
     const key = `${f}_${quality}`;
     if (!FORMS[key]) continue;
-    let fret = (pitch - OPEN_PITCHES[f] + 12) % 12;
-    if (fret === 0) fret = 12;
-    for (const fr of [fret, fret + 12]) {
-      if (fr < 1 || fr > 15) continue;
-      candidates.push({ f, fr });
+    const formDef = FORMS[key];
+    const offset = formDef.barreOffset || 0; // frets between barre and root (0 for E/A/D, 3 for C)
+
+    // Root fret on the root string
+    let rootFret = (pitch - OPEN_PITCHES[f] + 12) % 12;
+    if (rootFret === 0) rootFret = 12;
+    // For C form: openRootPitch=9 (A string open pitch). rootFret already = root fret on str5.
+    // barre fret = rootFret - offset (must be >= 1)
+    const barreFret = rootFret - offset;
+
+    for (const rf of [rootFret, rootFret + 12]) {
+      const bf = rf - offset;
+      if (bf < 1 || rf > MAX_FRET) continue;
+      candidates.push({ f, rootFret: rf, barreFret: bf });
     }
   }
   if (!candidates.length) return null;
 
   if (wantNearFret != null) {
-    candidates.sort((a,b) => Math.abs(a.fr - wantNearFret) - Math.abs(b.fr - wantNearFret) || Math.random()-0.5);
+    // Proximity based on root fret
+    candidates.sort((a,b) => Math.abs(a.rootFret - wantNearFret) - Math.abs(b.rootFret - wantNearFret) || Math.random()-0.5);
   } else {
     candidates.sort(() => Math.random() - 0.5);
   }
 
-  const { f, fr } = candidates[0];
-  return { ...FORMS[`${f}_${quality}`], form: f, fret: fr, quality };
+  const { f, rootFret: rf, barreFret: bf } = candidates[0];
+  // fret = root fret (shown in badge); barreFret used by renderer
+  return { ...FORMS[`${f}_${quality}`], form: f, fret: rf, barreFret: bf, quality };
 }
 
 // Build the next pair from the current progression
@@ -611,58 +730,71 @@ function nextPair() {
 // ──────────────────────────────────────────────────────────
 
 function renderDiagram(chord) {
-  const { rel, muted, rootStr, fret } = chord;
-  const ML=24, MT=30, fretCount=5, strCount=6;
-  const W=118, H=148;
-  const strGap = (W - ML - 8) / (strCount - 1);
-  const fretGap = (H - MT - 16) / fretCount;
+  const { rel, muted, rootStr, fret, barreFret, barreStrings, barreOffset } = chord;
+  // For non-C forms: barreFret == fret. For C form: barreFret = fret - 3.
+  const bf = (barreFret != null) ? barreFret : fret;
+
+  const strCount = 6;
+  const fretCount = 5;
+  const strGap = 22;
+  const fretGap = 22;
+  const ML = 28;
+  const MT = 32;
+  const gridW = strGap * (strCount - 1);
+  const gridH = fretGap * fretCount;
+  const svgW = ML + gridW + 20;
+  const svgH = MT + gridH + 20;
+
   const p = [];
+  p.push(`<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">`);
 
-  p.push(`<svg width="${W+8}" height="${H+8}" viewBox="0 0 ${W+8} ${H+8}" xmlns="http://www.w3.org/2000/svg">`);
+  // Fret label — always show the BARRE fret number
+  p.push(`<text x="4" y="14" font-size="10" fill="#c8a84b" font-family="Space Mono,monospace">${bf}fr</text>`);
 
-  // Fret label
-  p.push(`<text x="${ML}" y="16" font-size="10" fill="#c8a84b" font-family="Space Mono,monospace" text-anchor="middle">${fret}fr</text>`);
+  // Barre bar — only over barreStrings
+  if (barreStrings && barreStrings.length > 0) {
+    const barreSIdx = barreStrings.map(sn => 6 - sn).sort((a,b)=>a-b);
+    const xStart = ML + barreSIdx[0] * strGap;
+    const xEnd   = ML + barreSIdx[barreSIdx.length-1] * strGap;
+    p.push(`<rect x="${xStart-5}" y="${MT-6}" width="${xEnd-xStart+10}" height="8" rx="4" fill="#c8a84b" opacity="0.85"/>`);
+  }
 
-  // Barre bar
-  p.push(`<rect x="${ML-8}" y="${MT-5}" width="${strGap*(strCount-1)+16}" height="7" rx="3.5" fill="#c8a84b" opacity="0.82"/>`);
-
-  // Fret lines
-  for (let f=0; f<=fretCount; f++) {
-    const y = MT + f*fretGap;
-    p.push(`<line x1="${ML}" y1="${y}" x2="${ML+strGap*(strCount-1)}" y2="${y}" stroke="#262616" stroke-width="1"/>`);
+  // Fret grid lines
+  for (let f = 0; f <= fretCount; f++) {
+    const y = MT + f * fretGap;
+    p.push(`<line x1="${ML}" y1="${y}" x2="${ML+gridW}" y2="${y}" stroke="#2a2820" stroke-width="1"/>`);
   }
 
   // String lines
-  for (let s=0; s<strCount; s++) {
-    const x = ML + s*strGap;
-    p.push(`<line x1="${x}" y1="${MT}" x2="${x}" y2="${MT+fretCount*fretGap}" stroke="#302818" stroke-width="1.5"/>`);
+  for (let s = 0; s < strCount; s++) {
+    const x = ML + s * strGap;
+    p.push(`<line x1="${x}" y1="${MT}" x2="${x}" y2="${MT+gridH}" stroke="#302818" stroke-width="1.5"/>`);
   }
 
-  // Dots & mutes
-  for (let s=0; s<strCount; s++) {
-    const strNum = 6 - s; // str6=leftmost, str1=rightmost
-    const x = ML + s*strGap;
+  // Dots and mute markers
+  const strNames = ['E','A','D','G','B','e'];
+  for (let s = 0; s < strCount; s++) {
+    const strNum = 6 - s;
+    const x = ML + s * strGap;
     const isMuted = (muted||[]).includes(strNum) || rel[s] === null;
     if (isMuted) {
-      p.push(`<text x="${x}" y="${MT-9}" font-size="11" fill="#5a1a0e" text-anchor="middle" font-family="sans-serif">✕</text>`);
+      p.push(`<text x="${x}" y="${MT-12}" font-size="13" fill="#6a2010" text-anchor="middle" font-family="sans-serif">✕</text>`);
       continue;
     }
     const rf = rel[s];
     if (rf === 0) {
-      // On barre
-      p.push(`<circle cx="${x}" cy="${MT}" r="4" fill="#c8a84b"/>`);
+      p.push(`<circle cx="${x}" cy="${MT}" r="4.5" fill="#c8a84b"/>`);
     } else if (rf >= 1 && rf <= fretCount) {
-      const y = MT + (rf - 0.5)*fretGap;
-      const isRoot = strNum === rootStr;
-      p.push(`<circle cx="${x}" cy="${y}" r="5.5" fill="${isRoot ? '#c8a84b' : '#ddd5c0'}"/>`);
+      const y = MT + (rf - 0.5) * fretGap;
+      const isRoot = (strNum === rootStr);
+      p.push(`<circle cx="${x}" cy="${y}" r="7" fill="${isRoot ? '#c8a84b' : '#d8ceb4'}"/>`);
     }
   }
 
-  // String labels
-  const names = ['E','A','D','G','B','e'];
-  for (let s=0; s<strCount; s++) {
-    const x = ML + s*strGap;
-    p.push(`<text x="${x}" y="${MT+fretCount*fretGap+15}" font-size="8" fill="#383828" text-anchor="middle" font-family="Space Mono,monospace">${names[s]}</text>`);
+  // String name labels
+  for (let s = 0; s < strCount; s++) {
+    const x = ML + s * strGap;
+    p.push(`<text x="${x}" y="${MT+gridH+15}" font-size="9" fill="#3a3828" text-anchor="middle" font-family="Space Mono,monospace">${strNames[s]}</text>`);
   }
 
   p.push('</svg>');
@@ -677,10 +809,14 @@ const QUAL_LABEL = { major:'Major', minor:'Minor', '7':'Dom 7', m7:'Minor 7', ma
 const ROOT_STR_LABEL = { 6:'Root: 6th str (low E)', 5:'Root: 5th str (A)', 4:'Root: 4th str (D)' };
 
 function buildCard(chord) {
+  const bf = chord.barreFret != null ? chord.barreFret : chord.fret;
+  const barreLabel = chord.barreOffset
+    ? `Barre ${bf}fr · Root ${chord.fret}fr`
+    : `${chord.form} Form · Fret ${bf}`;
   return `
     <div class="chord-card">
       <div class="chord-big-name">${chord.name}</div>
-      <div class="chord-badge">${chord.form} Form · Fret ${chord.fret}</div>
+      <div class="chord-badge">${chord.form} Form · ${barreLabel}</div>
       ${renderDiagram(chord)}
       <div class="chord-fingering">
         ${ROOT_STR_LABEL[chord.rootStr] ?? ''}<br>
@@ -827,59 +963,78 @@ function hihat(t, open) {
 }
 
 // ── Rock beat sequencer ──
-// Explicit 8-step (8th-note) patterns. Crystal clear: 1 and 2 and 3 and 4 and.
-// step:         0    1    2    3    4    5    6    7
-//               1   1&    2   2&    3   3&    4   4&
+// Multiple 4/4 patterns for variety. Rotates automatically every measure.
+// step:  0    1    2    3    4    5    6    7
+//        1   1&    2   2&    3   3&    4   4&
 
-const PAT4 = [
-  {k:1,s:0,h:1,o:0}, // 1   — kick + hat
-  {k:0,s:0,h:1,o:0}, // 1&  — hat
-  {k:0,s:1,h:1,o:0}, // 2   — snare + hat
-  {k:0,s:0,h:1,o:0}, // 2&  — hat
-  {k:1,s:0,h:1,o:0}, // 3   — kick + hat
-  {k:0,s:0,h:1,o:0}, // 3&  — hat
-  {k:0,s:1,h:1,o:0}, // 4   — snare + hat
-  {k:0,s:0,h:1,o:1}, // 4&  — open hat
+const PATTERNS_4 = [
+  [ // Classic rock: kick 1&3, snare 2&4, 8th hats, open on 4&
+    {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},{k:0,s:0,h:1,o:0},
+    {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},{k:0,s:0,h:1,o:1},
+  ],
+  [ // Double kick on 1: kick 1,1&,3 — snare 2,4
+    {k:1,s:0,h:1,o:0},{k:1,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},{k:0,s:0,h:1,o:0},
+    {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},{k:0,s:0,h:1,o:0},
+  ],
+  [ // Syncopated: kick 1, 2&, 4& — snare 2, 4
+    {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},{k:1,s:0,h:1,o:0},
+    {k:0,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},{k:1,s:0,h:1,o:1},
+  ],
+  [ // Half-time feel: kick 1&3&, snare on 3 only
+    {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},
+    {k:1,s:1,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:0,h:1,o:1},
+  ],
+  [ // Driving: kick every beat + 2&, snare 2&4
+    {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},{k:1,s:0,h:1,o:0},
+    {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},{k:0,s:0,h:1,o:1},
+  ],
 ];
 
+let currentPatternIdx = 0;
+
 const PAT3 = [
-  {k:1,s:0,h:1,o:0}, // 1
-  {k:0,s:0,h:1,o:0}, // 1&
-  {k:0,s:1,h:1,o:0}, // 2
-  {k:0,s:0,h:1,o:0}, // 2&
-  {k:0,s:0,h:1,o:0}, // 3
-  {k:0,s:0,h:1,o:0}, // 3&
+  {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},
+  {k:0,s:1,h:1,o:0},{k:0,s:0,h:1,o:0},
+  {k:0,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},
 ];
 
 const PAT6 = [
-  {k:1,s:0,h:1,o:0}, // 1
-  {k:0,s:0,h:1,o:0}, // 2
-  {k:0,s:1,h:1,o:0}, // 3
-  {k:1,s:0,h:1,o:0}, // 4
-  {k:0,s:0,h:1,o:0}, // 5
-  {k:0,s:1,h:1,o:0}, // 6
+  {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},
+  {k:1,s:0,h:1,o:0},{k:0,s:0,h:1,o:0},{k:0,s:1,h:1,o:0},
 ];
 
 function startBeat(bpm, beats, onBeat) {
   stopBeat();
   beatCount = 0;
+  currentPatternIdx = Math.floor(Math.random() * PATTERNS_4.length);
 
-  const pattern = beats === 3 ? PAT3 : beats === 6 ? PAT6 : PAT4;
   const ms = (60000 / bpm) / 2; // 8th-note interval
+  let measureStep = 0; // tracks position within current pattern
 
   function tick() {
     const t = getCtx().currentTime + 0.015;
-    const step = beatCount % pattern.length;
+
+    let pattern;
+    if (beats === 3)      pattern = PAT3;
+    else if (beats === 6) pattern = PAT6;
+    else                  pattern = PATTERNS_4[currentPatternIdx];
+
+    const step = measureStep % pattern.length;
     const p = pattern[step];
 
     if (p.k) kick(t);
     if (p.s) snare(t);
     if (p.h) hihat(t, !!p.o);
 
-    // Advance quarter-beat dot on every downbeat (even steps)
     if (step % 2 === 0) onBeat(step / 2, beats);
 
-    beatCount = (beatCount + 1) % pattern.length;
+    measureStep++;
+    // Rotate to next pattern at the start of each new measure
+    if (measureStep >= pattern.length) {
+      measureStep = 0;
+      currentPatternIdx = (currentPatternIdx + 1) % PATTERNS_4.length;
+    }
+    beatCount++;
   }
 
   tick();
