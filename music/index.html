@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listening Log</title>
+  <style>
+    :root {
+      --bg: #0e0e0e;
+      --bg2: #181818;
+      --bg3: #222;
+      --border: #2e2e2e;
+      --text: #f0f0f0;
+      --muted: #888;
+      --accent: #c8f;
+      --s-bg: #2a1f3d;
+      --s-text: #c8a8ff;
+      --ap-bg: #1a2e24;
+      --ap-text: #6effa8;
+      --a-bg: #1e2d1a;
+      --a-text: #9de87a;
+      --bp-bg: #1a2333;
+      --bp-text: #7ab8f5;
+      --b-bg: #252525;
+      --b-text: #aaa;
+      --c-bg: #2e2510;
+      --c-text: #d4aa55;
+      --d-bg: #2e1a14;
+      --d-text: #d4735a;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Georgia', serif; min-height: 100vh; }
+
+    header { border-bottom: 1px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: baseline; gap: 1rem; }
+    header h1 { font-size: 1.2rem; font-weight: normal; letter-spacing: 0.08em; text-transform: uppercase; font-family: 'Courier New', monospace; }
+    header span { font-size: 0.8rem; color: var(--muted); }
+
+    .setup-banner { background: #1a1a2e; border: 1px solid #3a3a6e; border-radius: var(--radius); padding: 1rem 1.25rem; margin: 1.5rem 2rem; font-size: 0.85rem; line-height: 1.7; }
+    .setup-banner strong { color: var(--accent); }
+    .setup-banner code { background: #2a2a4e; padding: 1px 6px; border-radius: 4px; font-size: 0.8rem; font-family: 'Courier New', monospace; }
+    .setup-banner.hidden { display: none; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+    .tab { padding: 10px 18px; font-size: 0.85rem; cursor: pointer; border: none; background: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; letter-spacing: 0.05em; text-transform: uppercase; font-family: 'Courier New', monospace; transition: color 0.15s; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .stats-row { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; flex: 1; min-width: 110px; }
+    .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; font-family: 'Courier New', monospace; }
+    .stat-value { font-size: 1.6rem; font-weight: normal; }
+
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center; }
+    input[type="text"], input[type="date"], select {
+      height: 36px; font-size: 0.85rem; padding: 0 10px;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg2); color: var(--text);
+      font-family: inherit; outline: none; transition: border-color 0.15s;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input[type="text"] { min-width: 200px; }
+    select { min-width: 140px; cursor: pointer; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { text-align: left; padding: 8px 12px; font-size: 0.72rem; color: var(--muted); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.08em; font-family: 'Courier New', monospace; font-weight: normal; white-space: nowrap; cursor: pointer; user-select: none; }
+    th:hover { color: var(--text); }
+    td { padding: 12px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg2); }
+
+    .album-title { font-size: 0.92rem; margin-bottom: 2px; }
+    .album-artist { font-size: 0.8rem; color: var(--muted); }
+
+    .listens { display: flex; flex-direction: column; gap: 5px; }
+    .listen-entry { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+    .rating-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: bold; white-space: nowrap; font-family: 'Courier New', monospace; letter-spacing: 0.05em; }
+    .r-S   { background: var(--s-bg);  color: var(--s-text);  }
+    .r-Ap  { background: var(--ap-bg); color: var(--ap-text); }
+    .r-A   { background: var(--a-bg);  color: var(--a-text);  }
+    .r-Bp  { background: var(--bp-bg); color: var(--bp-text); }
+    .r-B   { background: var(--b-bg);  color: var(--b-text);  }
+    .r-C   { background: var(--c-bg);  color: var(--c-text);  }
+    .r-D   { background: var(--d-bg);  color: var(--d-text);  }
+
+    .listen-date { font-size: 0.78rem; color: var(--muted); font-family: 'Courier New', monospace; padding-top: 3px; }
+    .listen-notes { font-size: 0.8rem; color: var(--muted); font-style: italic; padding-top: 2px; }
+
+    .form-section { max-width: 520px; }
+    .form-section p { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.25rem; line-height: 1.6; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-family: 'Courier New', monospace; }
+    .form-group input, .form-group select { width: 100%; }
+    .form-full { grid-column: 1 / -1; }
+    .btn { height: 38px; padding: 0 22px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 0.85rem; cursor: pointer; font-family: 'Courier New', monospace; letter-spacing: 0.05em; transition: all 0.15s; }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary { border-color: var(--accent); color: var(--accent); }
+    .success-msg { font-size: 0.82rem; color: var(--ap-text); margin-top: 10px; display: none; font-family: 'Courier New', monospace; }
+    .error-msg { font-size: 0.82rem; color: var(--d-text); margin-top: 10px; display: none; font-family: 'Courier New', monospace; }
+
+    .autocomplete-wrap { position: relative; }
+    .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); z-index: 10; max-height: 180px; overflow-y: auto; margin-top: 2px; }
+    .autocomplete-item { padding: 9px 12px; font-size: 0.85rem; cursor: pointer; }
+    .autocomplete-item:hover { background: var(--bg2); color: var(--accent); }
+
+    .empty { color: var(--muted); font-size: 0.88rem; padding: 3rem 0; text-align: center; font-family: 'Courier New', monospace; }
+    .loading { color: var(--muted); font-size: 0.82rem; padding: 2rem 0; text-align: center; font-family: 'Courier New', monospace; }
+
+    @media (max-width: 600px) {
+      header { padding: 1rem; }
+      .container { padding: 1rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-full { grid-column: 1; }
+      input[type="text"] { min-width: 120px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Listening Log</h1>
+  <span id="header-count"></span>
+</header>
+
+<div class="setup-banner" id="setup-banner">
+  <strong>Setup required:</strong> Open this file and add your Supabase credentials at the top of the &lt;script&gt; section.<br>
+  Set <code>SUPABASE_URL</code> and <code>SUPABASE_KEY</code> to connect to your database.
+  See <code>SETUP.md</code> for full instructions.
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" data-tab="library">Library</button>
+    <button class="tab" data-tab="log">Log a listen</button>
+  </div>
+
+  <div id="panel-library" class="panel active">
+    <div class="stats-row">
+      <div class="stat"><div class="stat-label">Albums</div><div class="stat-value" id="stat-albums">—</div></div>
+      <div class="stat"><div class="stat-label">Total listens</div><div class="stat-value" id="stat-listens">—</div></div>
+      <div class="stat"><div class="stat-label">S tier</div><div class="stat-value" id="stat-s">—</div></div>
+      <div class="stat"><div class="stat-label">A+ tier</div><div class="stat-value" id="stat-ap">—</div></div>
+    </div>
+
+    <div class="controls">
+      <input type="text" id="search" placeholder="Search artist or album…" oninput="renderTable()">
+      <select id="filter-rating" onchange="renderTable()">
+        <option value="">All ratings</option>
+        <option value="S">S</option>
+        <option value="A+">A+</option>
+        <option value="A">A</option>
+        <option value="B+">B+</option>
+        <option value="B">B</option>
+        <option value="C">C</option>
+        <option value="D">D</option>
+      </select>
+      <select id="sort-field" onchange="renderTable()">
+        <option value="date">Sort: latest listen</option>
+        <option value="artist">Sort: artist A–Z</option>
+        <option value="album">Sort: album A–Z</option>
+        <option value="rating">Sort: best rating</option>
+      </select>
+    </div>
+
+    <div id="loading" class="loading">Loading…</div>
+    <table id="main-table" style="display:none;">
+      <thead>
+        <tr>
+          <th style="width:30%">Album</th>
+          <th style="width:70%">Listen history</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+    <div id="empty-msg" class="empty" style="display:none;">No albums match your filters.</div>
+  </div>
+
+  <div id="panel-log" class="panel">
+    <div class="form-section">
+      <p>Log a new listen. If you've heard this album before, it'll be added to its history.</p>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Artist</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="inp-artist" placeholder="e.g. Soundgarden" autocomplete="off"
+              oninput="artistAutocomplete()" onblur="setTimeout(()=>closeAC('ac-artist'),200)">
+            <div class="autocomplete-list" id="ac-artist" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="form-group form-full">
+          <label>Album</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="inp-album" placeholder="e.g. Badmotorfinger" autocomplete="off"
+              oninput="albumAutocomplete()" onblur="setTimeout(()=>closeAC('ac-album'),200)">
+            <div class="autocomplete-list" id="ac-album" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Date listened</label>
+          <input type="date" id="inp-date">
+        </div>
+        <div class="form-group">
+          <label>Rating</label>
+          <select id="inp-rating">
+            <option value="">Select…</option>
+            <option value="S">S</option>
+            <option value="A+">A+</option>
+            <option value="A">A</option>
+            <option value="B+">B+</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label>Notes (optional)</label>
+          <input type="text" id="inp-notes" placeholder="Brief thoughts…">
+        </div>
+        <div class="form-full">
+          <button class="btn btn-primary" onclick="submitEntry()">Save entry</button>
+          <div class="success-msg" id="success-msg">✓ Saved!</div>
+          <div class="error-msg" id="error-msg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── CONFIGURATION ──────────────────────────────────────────────────────────
+  // Replace these with your actual Supabase project values.
+  // Find them at: https://app.supabase.com → your project → Settings → API
+  const SUPABASE_URL = 'https://igdpjpjgsldfxhxuisvq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_gJEJGsdT9Z9aQRW42ynZ5Q_p6Cwd4L5';
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const CONFIGURED = SUPABASE_URL !== 'https://igdpjpjgsldfxhxuisvq.supabase.co';
+  const RATING_ORDER = {S:0,'A+':1,A:2,'B+':3,B:4,C:5,D:6};
+  const RATING_CLASS = {S:'r-S','A+':'r-Ap',A:'r-A','B+':'r-Bp',B:'r-B',C:'r-C',D:'r-D'};
+
+  let allListens = [];
+  let albumMap = {};
+
+  if (CONFIGURED) {
+    document.getElementById('setup-banner').classList.add('hidden');
+  }
+
+  // ── API HELPERS ────────────────────────────────────────────────────────────
+  async function sbFetch(path, opts = {}) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      ...opts,
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': opts.prefer || 'return=representation',
+        ...opts.headers,
+      }
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err);
+    }
+    return res.status === 204 ? null : res.json();
+  }
+
+  async function loadData() {
+    if (!CONFIGURED) {
+      document.getElementById('loading').textContent = 'Add your Supabase credentials to get started.';
+      return;
+    }
+    try {
+      const listens = await sbFetch('listens?select=*,albums(artist,album)&order=listen_date.desc');
+      allListens = listens;
+      buildAlbumMap();
+      renderStats();
+      renderTable();
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('main-table').style.display = 'table';
+    } catch(e) {
+      document.getElementById('loading').textContent = 'Error loading data. Check your Supabase credentials.';
+      console.error(e);
+    }
+  }
+
+  function buildAlbumMap() {
+    albumMap = {};
+    for (const l of allListens) {
+      const key = l.album_id;
+      if (!albumMap[key]) {
+        albumMap[key] = {
+          id: key,
+          artist: l.albums.artist,
+          album: l.albums.album,
+          listens: []
+        };
+      }
+      albumMap[key].listens.push({ date: l.listen_date, rating: l.rating, notes: l.notes || '' });
+    }
+  }
+
+  // ── STATS ──────────────────────────────────────────────────────────────────
+  function renderStats() {
+    const albums = Object.values(albumMap);
+    const totalListens = allListens.length;
+    const sCount = albums.filter(a => a.listens.some(l => l.rating === 'S')).length;
+    const apCount = albums.filter(a => a.listens.some(l => l.rating === 'A+')).length;
+    document.getElementById('stat-albums').textContent = albums.length;
+    document.getElementById('stat-listens').textContent = totalListens;
+    document.getElementById('stat-s').textContent = sCount;
+    document.getElementById('stat-ap').textContent = apCount;
+    document.getElementById('header-count').textContent = `${albums.length} albums`;
+  }
+
+  // ── TABLE ──────────────────────────────────────────────────────────────────
+  function bestRating(album) {
+    return album.listens.slice().sort((a,b) => RATING_ORDER[a.rating] - RATING_ORDER[b.rating])[0]?.rating || 'D';
+  }
+
+  function latestDate(album) {
+    return album.listens.map(l => l.date).sort().reverse()[0] || '';
+  }
+
+  function formatDate(s) {
+    if (!s) return '';
+    const [y,m,d] = s.split('-');
+    return `${parseInt(m)}/${parseInt(d)}/${y.slice(2)}`;
+  }
+
+  function renderTable() {
+    const search = document.getElementById('search').value.toLowerCase();
+    const filterRating = document.getElementById('filter-rating').value;
+    const sortField = document.getElementById('sort-field').value;
+
+    let rows = Object.values(albumMap).filter(a => {
+      const matchSearch = !search || a.artist.toLowerCase().includes(search) || a.album.toLowerCase().includes(search);
+      const matchRating = !filterRating || a.listens.some(l => l.rating === filterRating);
+      return matchSearch && matchRating;
+    });
+
+    rows.sort((a, b) => {
+      if (sortField === 'date')   return latestDate(b).localeCompare(latestDate(a));
+      if (sortField === 'artist') return a.artist.localeCompare(b.artist);
+      if (sortField === 'album')  return a.album.localeCompare(b.album);
+      if (sortField === 'rating') return RATING_ORDER[bestRating(a)] - RATING_ORDER[bestRating(b)];
+      return 0;
+    });
+
+    const tbody = document.getElementById('table-body');
+    const empty = document.getElementById('empty-msg');
+
+    if (!rows.length) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = rows.map(a => {
+      const listensHtml = a.listens
+        .slice().sort((x,y) => y.date.localeCompare(x.date))
+        .map(l => `
+          <div class="listen-entry">
+            <span class="rating-badge ${RATING_CLASS[l.rating] || 'r-B'}">${l.rating}</span>
+            <span class="listen-date">${formatDate(l.date)}</span>
+            ${l.notes ? `<span class="listen-notes">${l.notes}</span>` : ''}
+          </div>`).join('');
+      return `<tr>
+        <td>
+          <div class="album-title">${a.album}</div>
+          <div class="album-artist">${a.artist}</div>
+        </td>
+        <td><div class="listens">${listensHtml}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── AUTOCOMPLETE ───────────────────────────────────────────────────────────
+  function getArtists() {
+    return [...new Set(Object.values(albumMap).map(a => a.artist))].sort();
+  }
+
+  function getAlbumsByArtist(artist) {
+    return Object.values(albumMap)
+      .filter(a => a.artist.toLowerCase() === artist.toLowerCase())
+      .map(a => a.album);
+  }
+
+  function artistAutocomplete() {
+    const val = document.getElementById('inp-artist').value.toLowerCase();
+    const ac = document.getElementById('ac-artist');
+    if (!val) { ac.style.display = 'none'; return; }
+    const matches = getArtists().filter(a => a.toLowerCase().includes(val));
+    if (!matches.length) { ac.style.display = 'none'; return; }
+    ac.innerHTML = matches.slice(0, 6).map(a =>
+      `<div class="autocomplete-item" onmousedown="selectArtist('${a.replace(/'/g,"\\'")}')">${a}</div>`
+    ).join('');
+    ac.style.display = 'block';
+  }
+
+  function selectArtist(name) {
+    document.getElementById('inp-artist').value = name;
+    document.getElementById('ac-artist').style.display = 'none';
+    albumAutocomplete();
+  }
+
+  function albumAutocomplete() {
+    const artist = document.getElementById('inp-artist').value;
+    const val = document.getElementById('inp-album').value.toLowerCase();
+    const ac = document.getElementById('ac-album');
+    const albums = getAlbumsByArtist(artist).filter(a => !val || a.toLowerCase().includes(val));
+    if (!albums.length) { ac.style.display = 'none'; return; }
+    ac.innerHTML = albums.slice(0, 6).map(a =>
+      `<div class="autocomplete-item" onmousedown="selectAlbum('${a.replace(/'/g,"\\'")}')">${a}</div>`
+    ).join('');
+    ac.style.display = 'block';
+  }
+
+  function selectAlbum(name) {
+    document.getElementById('inp-album').value = name;
+    document.getElementById('ac-album').style.display = 'none';
+  }
+
+  function closeAC(id) { document.getElementById(id).style.display = 'none'; }
+
+  // ── SUBMIT ─────────────────────────────────────────────────────────────────
+  async function submitEntry() {
+    const artist = document.getElementById('inp-artist').value.trim();
+    const album  = document.getElementById('inp-album').value.trim();
+    const date   = document.getElementById('inp-date').value;
+    const rating = document.getElementById('inp-rating').value;
+    const notes  = document.getElementById('inp-notes').value.trim();
+    const errEl  = document.getElementById('error-msg');
+
+    errEl.style.display = 'none';
+    if (!artist || !album || !date || !rating) {
+      errEl.textContent = 'Please fill in artist, album, date, and rating.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    try {
+      // Upsert album
+      const [albumRow] = await sbFetch('albums?select=id', {
+        method: 'POST',
+        prefer: 'return=representation,resolution=merge-duplicates',
+        headers: { 'Prefer': 'return=representation,resolution=merge-duplicates' },
+        body: JSON.stringify({ artist, album })
+      });
+
+      // Insert listen
+      await sbFetch('listens', {
+        method: 'POST',
+        prefer: 'return=minimal',
+        headers: { 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ album_id: albumRow.id, listen_date: date, rating, notes })
+      });
+
+      // Reload data
+      await loadData();
+
+      // Clear form
+      document.getElementById('inp-artist').value = '';
+      document.getElementById('inp-album').value = '';
+      document.getElementById('inp-rating').value = '';
+      document.getElementById('inp-notes').value = '';
+      setTodayDate();
+
+      const msg = document.getElementById('success-msg');
+      msg.style.display = 'block';
+      setTimeout(() => msg.style.display = 'none', 2500);
+
+    } catch(e) {
+      errEl.textContent = 'Error saving. Check your connection and try again.';
+      errEl.style.display = 'block';
+      console.error(e);
+    }
+  }
+
+  // ── TABS ───────────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  function setTodayDate() {
+    document.getElementById('inp-date').value = new Date().toISOString().split('T')[0];
+  }
+
+  setTodayDate();
+  loadData();
+</script>
+</body>
+</html>
