@@ -168,8 +168,10 @@
   }
   .btn-primary { background: var(--accent); color: #0d0d0d; font-weight: 700; }
   .btn-primary:hover { background: #d4b05c; }
-  .btn-stop { background: transparent; color: var(--accent2); border: 1px solid #3a1a10; }
-  .btn-stop:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  .btn-stop  { background: transparent; color: var(--accent2); border: 1px solid #3a1a10; }
+  .btn-stop:hover  { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  .btn-pause { background: transparent; color: var(--accent); border: 1px solid #3a2e10; }
+  .btn-pause:hover { background: #2a2210; }
 
   /* ── MAIN ── */
   .main {
@@ -268,6 +270,13 @@
           <option value="11">B</option>
         </select>
       </div>
+      <div class="toggle-row" style="margin-top:0.75rem">
+        <span class="toggle-label">Minor key</span>
+        <label class="toggle">
+          <input type="checkbox" id="minorMode">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
     </div>
 
     <hr class="div">
@@ -339,7 +348,8 @@
 
     <div style="display:flex;flex-direction:column;gap:0.45rem;margin-top:auto">
       <button class="btn btn-primary" id="startBtn">Start Session</button>
-      <button class="btn btn-stop"    id="stopBtn" style="display:none">End Session</button>
+      <button class="btn btn-pause"   id="pauseBtn" style="display:none">Pause</button>
+      <button class="btn btn-stop"    id="stopBtn"  style="display:none">End Session</button>
     </div>
 
   </aside>
@@ -397,7 +407,8 @@
 // ──────────────────────────────────────────────────────────
 
 const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11]; // semitones from root for each degree
+const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11]; // W W H W W W H
+const MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10]; // natural minor
 
 // ── CAGED form definitions ──────────────────────────────────────────
 // Read cell-by-cell from PDF page 27.
@@ -639,16 +650,54 @@ const PROGRESSIONS = [
     chords:[[1,'major'],[3,'minor'],[4,'major'],[6,'m7']] },
 ];
 
+
+// ── Minor key progressions (natural minor) ─────────────────────────
+// Diatonic minor: i=min, ii°=dim(→min), III=maj, iv=min, v=min/V7, VI=maj, VII=maj
+// Exactly one 7th chord per progression.
+const MINOR_PROGRESSIONS = [
+  { name:'i – VII – VI – V7',
+    chords:[[1,'minor'],[7,'major'],[6,'major'],[5,'7']] },
+  { name:'i – iv – V7 – i',
+    chords:[[1,'minor'],[4,'minor'],[5,'7'],[1,'minor']] },
+  { name:'i – VI – III – V7',
+    chords:[[1,'minor'],[6,'major'],[3,'major'],[5,'7']] },
+  { name:'im7 – iv – VII – III',
+    chords:[[1,'m7'],[4,'minor'],[7,'major'],[3,'major']] },
+  { name:'i – V7 – VI – III',
+    chords:[[1,'minor'],[5,'7'],[6,'major'],[3,'major']] },
+  { name:'i – VII – im7 – VI',
+    chords:[[1,'minor'],[7,'major'],[1,'m7'],[6,'major']] },
+  { name:'i – VI – VII – V7',
+    chords:[[1,'minor'],[6,'major'],[7,'major'],[5,'7']] },
+  { name:'i – III – V7 – VI',
+    chords:[[1,'minor'],[3,'major'],[5,'7'],[6,'major']] },
+  { name:'i – iv – VI – V7',
+    chords:[[1,'minor'],[4,'minor'],[6,'major'],[5,'7']] },
+  { name:'i – IIIMaj7 – VI – VII',
+    chords:[[1,'minor'],[3,'maj7'],[6,'major'],[7,'major']] },
+  { name:'i – iv – i – V7',
+    chords:[[1,'minor'],[4,'minor'],[1,'minor'],[5,'7']] },
+  { name:'vim7 – i – VII – VI',
+    chords:[[6,'m7'],[1,'minor'],[7,'major'],[6,'major']] },
+];
+
 // ── State ──
 let currentProg = null;
 let progPairIdx = 0;
+let isPaused = false;
+
+function isMinorMode() {
+  return document.getElementById('minorMode').checked;
+}
 
 function pickProg() {
-  return PROGRESSIONS[Math.floor(Math.random() * PROGRESSIONS.length)];
+  const pool = isMinorMode() ? MINOR_PROGRESSIONS : PROGRESSIONS;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function degreeToNote(keyRoot, degree) {
-  return (keyRoot + MAJOR_SCALE[degree - 1]) % 12;
+  const scale = isMinorMode() ? MINOR_SCALE : MAJOR_SCALE;
+  return (keyRoot + scale[degree - 1]) % 12;
 }
 
 function chordName(pitch, quality) {
@@ -1106,6 +1155,7 @@ function startSession() {
 
   showScreen('activeScreen');
   document.getElementById('startBtn').style.display = 'none';
+  document.getElementById('pauseBtn').style.display = 'block';
   document.getElementById('stopBtn').style.display  = 'block';
 
   loadNextPair();
@@ -1133,20 +1183,69 @@ function startSession() {
   }
 }
 
+function pauseSession() {
+  if (!isPaused) {
+    // Pause
+    isPaused = true;
+    clearInterval(sessionTimer); clearInterval(pairTimer);
+    sessionTimer = pairTimer = null;
+    stopBeat();
+    document.getElementById('pauseBtn').textContent = 'Resume';
+    document.getElementById('pauseBtn').classList.add('btn-primary');
+    document.getElementById('pauseBtn').classList.remove('btn-pause');
+  } else {
+    // Resume
+    isPaused = false;
+    document.getElementById('pauseBtn').textContent = 'Pause';
+    document.getElementById('pauseBtn').classList.remove('btn-primary');
+    document.getElementById('pauseBtn').classList.add('btn-pause');
+
+    sessionTimer = setInterval(() => {
+      sessionRem--;
+      document.getElementById('sessionDisplay').textContent = fmt(sessionRem);
+      if (sessionRem <= 0) endSession();
+    }, 1000);
+
+    pairTimer = setInterval(() => {
+      pairRem--;
+      document.getElementById('pairDisplay').textContent = fmt(pairRem);
+      document.getElementById('pairDisplay').classList.toggle('urgent', pairRem<=5 && pairRem>0);
+      document.getElementById('progFill').style.width = `${(pairRem/pairDur)*100}%`;
+      if (pairRem <= 0) {
+        document.getElementById('pairDisplay').classList.remove('urgent');
+        pairRem = pairDur;
+        loadNextPair();
+      }
+    }, 1000);
+
+    if (document.getElementById('midiToggle').checked) {
+      const beats = parseInt(document.getElementById('timeSig').value);
+      startBeat(parseInt(document.getElementById('tempoRange').value), beats, lightBeat);
+    }
+  }
+}
+
 function stopSession() {
+  isPaused = false;
   clearInterval(sessionTimer); clearInterval(pairTimer);
   stopBeat();
   sessionTimer=pairTimer=null;
   document.getElementById('startBtn').style.display='block';
+  document.getElementById('pauseBtn').style.display='none';
+  document.getElementById('pauseBtn').textContent='Pause';
+  document.getElementById('pauseBtn').classList.remove('btn-primary');
+  document.getElementById('pauseBtn').classList.add('btn-pause');
   document.getElementById('stopBtn').style.display='none';
   showScreen('idleScreen');
 }
 
 function endSession() {
+  isPaused = false;
   clearInterval(sessionTimer); clearInterval(pairTimer);
   stopBeat();
   sessionTimer=pairTimer=null;
   document.getElementById('startBtn').style.display='block';
+  document.getElementById('pauseBtn').style.display='none';
   document.getElementById('stopBtn').style.display='none';
   showScreen('completeScreen');
 }
@@ -1174,6 +1273,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('startBtn').addEventListener('click', startSession);
+  document.getElementById('pauseBtn').addEventListener('click', pauseSession);
   document.getElementById('stopBtn').addEventListener('click', stopSession);
   document.getElementById('restartBtn').addEventListener('click', () => showScreen('idleScreen'));
 
